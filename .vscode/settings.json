@@ -1,0 +1,12 @@
+{
+  "C_Cpp.default.includePath": [
+    "${env:PLAYDATE_SDK_PATH}/C_API"
+  ],
+  "files.associations": {
+    "pd_api.h": "c",
+    "stdint.h": "c"
+  },
+  "cSpell.words": [
+    "Playdate"
+  ]
+}

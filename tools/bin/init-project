@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+pdxinfo --create
+
+NAME=$(pdxinfo --get name)
+REPLACE=$(printf 's/hello_world/%s/g' "${NAME}")
+
+sed "${REPLACE}" < CMakeLists.txt > CMakeLists.txt.init && mv CMakeLists.txt.init CMakeLists.txt
+
+cd build
+cmake ..
+cd -

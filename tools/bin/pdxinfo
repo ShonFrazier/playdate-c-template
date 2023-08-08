@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -c|--create)
+      ACTION=create
+      PDXINFO_FILE="$2"
+      shift # past argument
+      shift # past path
+      ;;
+    -f|--file)
+      PDXINFO_FILE="$2"
+      shift # past argument
+      shift # past path
+      ;;
+    -r|--read|-g|--get)
+      ACTION=get
+      NAME="$2"
+      shift # past argument
+      shift # past name
+      ;;
+    -s|--set|-w|--write)
+      ACTION=set
+      NAME="$2"
+      VALUE="$3"
+      shift # past argument
+      shift # past name
+      shift # past value
+      ;;
+    -d|--delete)
+      ACTION=delete
+      NAME="$2"
+      shift # past argument
+      shift # past name
+      ;;
+    -i|--increment-build)
+      ACTION=increment
+      shift # past argument
+      ;;
+    -*|--*)
+      echo "Unknown option $1" > /dev/stderr
+      exit 1
+      ;;
+    *)
+      echo "Unknown argument. Ignoring" > /dev/stderr
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
+get_filename() {
+  if [ -z "$PDXINFO_FILE" ]; then
+    PDXINFO_FILE=$(find src -name pdxinfo | grep -v $0 | head -n 1)
+  fi
+  if [ -z "$PDXINFO_FILE" ]; then
+    PDXINFO_FILE="src/pdxinfo"
+  fi
+}
+
+declare -A props
+parse_props() {
+  if [ -f "$PDXINFO_FILE" ]; then
+    while IFS='=' read -r key value; do
+      props["$key"]="$value"
+    done < "$PDXINFO_FILE"
+  else
+    set_default_props
+  fi
+}
+
+get_value() {
+  KEY="$1"
+  VALUE="${props[$KEY]}"
+}
+
+set_value() {
+  KEY="$1"
+  VALUE="$2"
+  props["$KEY"]="$VALUE"
+}
+
+write_props() {
+  mv "$PDXINFO_FILE" "$PDXINFO_FILE.bak" 2>/dev/null || mkdir -p "$(dirname "$PDXINFO_FILE")"
+  for key in "${!props[@]}"; do
+    value="${props["$key"]}"
+    printf '%s=%s\n' "$key" "$value"
+  done | sponge "$PDXINFO_FILE"
+}
+
+set_default_props() {
+  _name="$(basename $(realpath .))"
+  props["name"]="$_name"
+  props["author"]="$(whoami)"
+  props["description"]="A game for PlayDate"
+  props["bundleID"]="com.example.$_name"
+}
+
+delete_kv() {
+  KEY=$1
+  props=("${props[@]/$KEY}")
+}
+
+increment() {
+  get_value buildNumber
+  if [ -z "$VALUE" ]; then VALUE=0; fi
+  NEW_VALUE=$(expr ${VALUE:-0} + 1)
+  set_value buildNumber $(printf '%03d' $NEW_VALUE)
+}
+
+get_filename
+parse_props
+
+case $ACTION in
+  create)
+    write_props
+    ;;
+  get)
+    get_value "$NAME"
+    printf '%s\n' "${props[${NAME}]}"
+    ;;
+  set)
+    set_value "$NAME" "$VALUE"
+    write_props
+    ;;
+  delete)
+    delete_kv "$NAME"
+    write_props
+    ;;
+  increment)
+    increment
+    write_props
+    ;;
+
+  *)
+    echo "Unknown action: $ACTION" > /dev/stderr
+    exit 1
+esac
