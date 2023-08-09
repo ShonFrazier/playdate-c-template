@@ -10,6 +10,8 @@
 #define EXPORT
 #endif
 
+#include "draw.h"
+
 static int update(void* userdata);
 
 EXPORT int eventHandler(PlaydateAPI* pd, PDSystemEvent event, uint32_t arg)
@@ -23,12 +25,18 @@ EXPORT int eventHandler(PlaydateAPI* pd, PDSystemEvent event, uint32_t arg)
 		pd->system->setUpdateCallback(update, pd);
 	}
 
+	pd->display->setRefreshRate(0);
+
 	return 0;
 }
 
 static int update(void* userdata)
 {
 	PlaydateAPI* pd = userdata;
+
+	draw(pd);
+
+	//pd->system->drawFPS(0,0);
 
 	// return a non-zero number to tell the system to update the display, or zero if update isn’t needed.
 	return 1;
